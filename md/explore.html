@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Explore&colon; Semantic Mapping Stack for Dome2</title>
+            <style>
+/* From extension vscode.github */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+.vscode-dark img[src$=\#gh-light-mode-only],
+.vscode-light img[src$=\#gh-dark-mode-only],
+.vscode-high-contrast:not(.vscode-high-contrast-light) img[src$=\#gh-light-mode-only],
+.vscode-high-contrast-light img[src$=\#gh-dark-mode-only] {
+	display: none;
+}
+
+</style>
+    <script type="module">
+      import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+      mermaid.initialize({ startOnLoad: true });
+    </script>
+            
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/markdown.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/highlight.css">
+<style>
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, 'Ubuntu', 'Droid Sans', sans-serif;
+                font-size: 14px;
+                line-height: 1.6;
+            }
+        </style>
+        <style>
+.task-list-item {
+    list-style-type: none;
+}
+
+.task-list-item-checkbox {
+    margin-left: -20px;
+    vertical-align: middle;
+    pointer-events: none;
+}
+</style>
+<style>
+:root {
+  --color-note: #0969da;
+  --color-tip: #1a7f37;
+  --color-warning: #9a6700;
+  --color-severe: #bc4c00;
+  --color-caution: #d1242f;
+  --color-important: #8250df;
+}
+
+</style>
+<style>
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-note: #2f81f7;
+    --color-tip: #3fb950;
+    --color-warning: #d29922;
+    --color-severe: #db6d28;
+    --color-caution: #f85149;
+    --color-important: #a371f7;
+  }
+}
+
+</style>
+<style>
+.markdown-alert {
+  padding: 0.5rem 1rem;
+  margin-bottom: 16px;
+  color: inherit;
+  border-left: .25em solid #888;
+}
+
+.markdown-alert>:first-child {
+  margin-top: 0
+}
+
+.markdown-alert>:last-child {
+  margin-bottom: 0
+}
+
+.markdown-alert .markdown-alert-title {
+  display: flex;
+  font-weight: 500;
+  align-items: center;
+  line-height: 1
+}
+
+.markdown-alert .markdown-alert-title .octicon {
+  margin-right: 0.5rem;
+  display: inline-block;
+  overflow: visible !important;
+  vertical-align: text-bottom;
+  fill: currentColor;
+}
+
+.markdown-alert.markdown-alert-note {
+  border-left-color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-note .markdown-alert-title {
+  color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-important {
+  border-left-color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-important .markdown-alert-title {
+  color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-warning {
+  border-left-color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-warning .markdown-alert-title {
+  color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-tip {
+  border-left-color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-tip .markdown-alert-title {
+  color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-caution {
+  border-left-color: var(--color-caution);
+}
+
+.markdown-alert.markdown-alert-caution .markdown-alert-title {
+  color: var(--color-caution);
+}
+
+</style>
+        
+        </head>
+        <body class="vscode-body vscode-light">
+            <h1 id="explore-semantic-mapping-stack-for-dome2">Explore: Semantic Mapping Stack for Dome2</h1>
+<h2 id="robot-platform">Robot Platform</h2>
+<p>The Explore project builds upon an existing Dome2 robot that provides core ROS2 functionality. The Dome2 platform features a differential drive chassis powered by a Raspberry Pi 5, equipped with an Oak-d-lite camera (providing both RGB and depth sensing), and a lidar sensor. The entire system runs on ROS2 Jazzy.</p>
+<p>The Dome2 base platform handles motion control and odometry, IMU sensor integration, camera and lidar drivers, basic sensor data publishing, and teleoperation. The Explore stack adds a semantic mapping layer on top of this foundation, implementing autonomous exploration and object detection/cataloging capabilities.</p>
+<h2 id="mission-specification">Mission Specification</h2>
+<h3 id="primary-mission">Primary Mission</h3>
+<p>The robot will autonomously explore and map an unknown indoor environment while identifying and cataloging objects of interest.</p>
+<h3 id="mission-objectives">Mission Objectives</h3>
+<p>The mission has three core objectives: <strong>Autonomous Exploration</strong> to navigate and avoid obstacles autonomously; <strong>Mapping &amp; Localization</strong> to build a 2D occupancy map with accurate localization; and <strong>Object Detection &amp; Cataloging</strong> to identify and record object locations on the map.</p>
+<h3 id="success-criteria">Success Criteria</h3>
+<p>Mission success requires the robot to navigate autonomously without collision, generate a usable map of the explored space, detect and identify target objects with greater than 80% accuracy, and log object positions on the map.</p>
+<h3 id="environment--constraints">Environment &amp; Constraints</h3>
+<p>The target environment is one floor of a multi-room home, typically 1000-2500 square feet, with wood and carpet flooring. Standard doorways are assumed to be open, while stairs are treated as boundaries and marked as no-go zones. Adequate lighting for vision systems is required. Mission duration is expected to be 15-30 minutes, with battery runtime providing a minimum of 45-60 minutes of operation.</p>
+<h3 id="design-priority-reliability-first">Design Priority: Reliability First</h3>
+<p>The core principle is autonomous operation without human intervention. It's better to explore 60% reliably than 100% with failures. The system employs conservative navigation with wider safety margins, stopping safely when uncertain rather than risking collision, and logging issues for post-mission review.</p>
+<h3 id="mission-behavior">Mission Behavior</h3>
+<p><strong>Starting Position:</strong> The robot uses ad-hoc placement without requiring a dock initially. It can be placed anywhere and starts at pose (0,0,0), with SLAM building the map from the starting position. An AprilTag dock can optionally be added later for improved return-to-home reliability.</p>
+<p><strong>Mission Completion:</strong> Upon completion, the robot returns to the home position (starting location) and saves the map and object catalog.</p>
+<p><strong>Exploration Completion Criteria:</strong> The mission is considered &quot;done&quot; when any of the following occurs:</p>
+<ul>
+<li><strong>No accessible frontiers</strong> - All frontiers explored or unreachable</li>
+<li><strong>Time limit reached</strong> - Maximum 30-40 minutes</li>
+<li><strong>Manual stop</strong> - User terminates mission</li>
+<li><strong>Frontier size threshold</strong> - Only tiny frontiers remain (&lt; min size)</li>
+<li><strong>Failure condition</strong> - Localization loss or critical sensor failure</li>
+</ul>
+<p><strong>Failure Modes:</strong> In case of localization loss, the system declares failure and stops safely in place. If stuck, it attempts recovery (back up, rotate, try alternate path); if recovery fails, it stops and logs the condition. For sensor failures, the robot continues if possible but aborts if critical sensors fail. Low battery management is not currently handled, as sufficient runtime is assumed.</p>
+<h3 id="stuck-detection-strategy">Stuck Detection Strategy</h3>
+<p>The robot is considered &quot;stuck&quot; when it cannot make progress toward its navigation goal despite being commanded to move. Multiple indicators are used together for reliable detection.</p>
+<p><strong>Detection Methods:</strong></p>
+<p><strong>Nav2 Action Status Monitoring:</strong> The system monitors the NavigateToPose action feedback. When the action status returns STATUS_ABORTED, Nav2 has given up on the goal, indicating path planning failed or the goal is unreachable. This is the most reliable indicator.</p>
+<p><strong>Progress Tracking:</strong> The system checks if the robot position changed in the last N seconds. If the distance between current and last position is below a threshold and time since last progress exceeds the stuck timeout (e.g., 30 seconds), the robot is considered stuck. This catches cases where Nav2 is still trying but the robot is physically blocked.</p>
+<p><strong>Velocity Feedback Mismatch:</strong> By comparing commanded versus actual velocity, the system can detect when the robot is commanded to move but isn't moving. If this mismatch persists beyond a timeout (e.g., 5 seconds), it indicates physical obstruction such as being caught on carpet or wedged against furniture. This requires odometry feedback.</p>
+<p><strong>Recovery Behavior Counter:</strong> The system tracks how many times Nav2 enters recovery mode. Repeated recovery attempts indicate a persistent problem. After exceeding max_recovery_attempts (e.g., 3), the robot is considered stuck.</p>
+<p><strong>Goal Timeout:</strong> An overall timeout for reaching any single frontier prevents infinite attempts and catches slow progress or wandering behavior.</p>
+<p><strong>Combined Detection Logic:</strong> The system uses multiple indicators for reliability. The robot is stuck if any critical indicator triggers: Nav2 failed, no progress detected, too many recoveries attempted, or goal timeout exceeded.</p>
+<p><strong>Recovery Actions When Stuck:</strong></p>
+<p>First attempt: Let Nav2's built-in recovery behaviors handle it (rotate_recovery spins in place to clear costmap, back_up_recovery backs away from obstacles, wait_recovery waits for dynamic obstacles to move).</p>
+<p>Second attempt: Blacklist this frontier for 60 seconds and try a different goal to continue exploration.</p>
+<p>Third attempt (if stuck again): Permanently blacklist the frontier, log the location for debugging, and continue with remaining frontiers.</p>
+<p>If repeatedly stuck everywhere: Declare mission failure, as no progress is possible. Stop safely and log diagnostics while waiting for human intervention.</p>
+<p><strong>Key Configuration Parameters:</strong></p>
+<ul>
+<li><code>mission.failure.stuck_timeout</code>: 30.0 seconds of no movement</li>
+<li><code>mission.failure.max_recovery_attempts</code>: 3 before giving up on goal</li>
+<li><code>navigation.recovery.retry_timeout</code>: 30.0 Nav2 recovery timeout</li>
+<li><code>navigation.recovery.max_retries</code>: 3 Nav2 recovery attempts</li>
+<li><code>exploration.blacklist_timeout</code>: 60.0 seconds to retry blacklisted frontier</li>
+<li><code>exploration.max_blacklist_size</code>: 20 maximum unreachable frontiers</li>
+</ul>
+<p><strong>Telemetry Logged:</strong> Timestamp of stuck detection, robot position when stuck, goal frontier coordinates, number of recovery attempts, sensor data (lidar scan, camera image), and map state at time of stuck event.</p>
+<p><strong>Prevention Strategies:</strong> Conservative costmap inflation provides wider safety margins around obstacles. Lower velocities give more time to react. Frontier filtering avoids selecting frontiers too close to obstacles. Maximum goal distance prevents attempting very distant goals.</p>
+<h2 id="software-architecture">Software Architecture</h2>
+<h3 id="overview">Overview</h3>
+<p>The system employs a ROS2-based modular architecture with the standard navigation stack (Nav2) and custom mission control.</p>
+<h3 id="core-components">Core Components</h3>
+<p><strong>Prerequisites</strong> provided by the Dome2 base platform include the hardware interface layer (motor control, sensor drivers for lidar, camera, and IMU, and odometry publishing). Base topics <code>/scan</code>, <code>/odom</code>, <code>/camera/rgb</code>, <code>/camera/depth</code>, <code>/cmd_vel</code>, and <code>/imu</code> are already available. The Explore semantic mapping stack builds on top of the working Dome2 platform.</p>
+<p><strong>Perception Layer:</strong> The SLAM Node uses SLAM Toolbox for map building and localization. The Object Detection Node runs MobileNet-SSD on the Oak-d-lite for object identification. Obstacle Detection combines lidar and depth data for obstacle avoidance.</p>
+<p><strong>Navigation Layer:</strong> The Nav2 Stack provides path planning, trajectory control, and behavior trees. The Costmap combines static maps with dynamic obstacles. Recovery Behaviors handle stuck detection and recovery routines.</p>
+<p><strong>Mission Control Layer:</strong> The Mission Manager Node implements a high-level state machine (exploring, returning home, failed). The Exploration Node uses the Autonomous Explorer package for frontier-based exploration. The Object Catalog maintains detected objects with positions.</p>
+<p><strong>Monitoring &amp; Logging:</strong> The Diagnostics system monitors system health, while the Data Logger captures mission telemetry for post-analysis.</p>
+<h3 id="key-data-flows">Key Data Flows</h3>
+<p>The system flow works as follows: Lidar feeds SLAM Toolbox which generates the Map, which Nav2 uses to send commands to Motor Control. The Camera feeds Object Detection which populates the Object Catalog. The Mission Manager sends Nav2 Goals to Navigation. The Exploration Node performs Map Analysis and sends Nav2 Goals. All Nodes feed Diagnostics which sends data to the Logger.</p>
+<h3 id="ros2-topics">ROS2 Topics</h3>
+<p><strong>Prerequisites</strong> provided by Dome2:</p>
+<ul>
+<li><code>/scan</code> - Lidar data (sensor_msgs/LaserScan)</li>
+<li><code>/camera/rgb</code> - RGB image (sensor_msgs/Image)</li>
+<li><code>/camera/depth</code> - Depth image (sensor_msgs/Image)</li>
+<li><code>/odom</code> - Odometry (nav_msgs/Odometry)</li>
+<li><code>/imu</code> - IMU data (sensor_msgs/Imu)</li>
+<li><code>/cmd_vel</code> - Velocity commands (geometry_msgs/Twist) - consumed by motors</li>
+</ul>
+<p><strong>Provided by Explore:</strong></p>
+<ul>
+<li><code>/map</code> - Occupancy grid from SLAM Toolbox (nav_msgs/OccupancyGrid)</li>
+<li><code>/goal_pose</code> - Navigation goals (geometry_msgs/PoseStamped)</li>
+<li><code>/detected_objects</code> - Object detections (custom message)</li>
+<li><code>/mission_state</code> - Current mission status (custom message)</li>
+<li><code>/exploration_status</code> - Exploration progress (custom message)</li>
+</ul>
+<h3 id="technology-stack">Technology Stack</h3>
+<p><strong>Confirmed Decisions:</strong></p>
+<ul>
+<li><strong>SLAM</strong>: SLAM Toolbox (async mode)</li>
+<li><strong>Navigation</strong>: Nav2 stack</li>
+<li><strong>Exploration</strong>: Autonomous-Explorer-and-Mapper-ros2-nav2</li>
+<li><strong>Object Detection</strong>: MobileNet-SSD (Luxonis model zoo, runs on Oak-d-lite Myriad X)</li>
+<li><strong>Control Interface</strong>: TUI (textual library) + Visualization</li>
+<li><strong>Mission Logic</strong>: Simple state machine (not behavior tree)</li>
+<li><strong>ROS2 Distribution</strong>: Jazzy</li>
+</ul>
+<h3 id="control-logic-architecture">Control Logic Architecture</h3>
+<p><strong>Behavior Trees</strong> are used internally by Nav2 only. Nav2 uses BehaviorTree.CPP for navigation logic with pre-configured behavior trees that handle path planning, following, and recovery. These are used as-is without requiring custom behavior trees, providing robust navigation behaviors automatically.</p>
+<p><strong>State Machine</strong> is used for mission control and exploration. Simple procedural logic manages mission states (IDLE, EXPLORING, RETURNING_HOME, FAILED). Exploration uses timer-based sequential logic (find frontiers → pick → navigate). This approach is easier to understand, debug, and maintain, matching the reliability-first philosophy.</p>
+<p><strong>Why not behavior trees for mission control?</strong> The mission logic is straightforward with a linear flow: explore → return → done. A state machine is simpler and more transparent. Less complexity means fewer failure modes. Behavior trees would add overhead without clear benefit for this use case.</p>
+<p><strong>Architecture layering:</strong></p>
+<pre><code>Mission Manager (State Machine)                    ← Explore stack
+    ↓
+Exploration Node (Sequential Logic)                ← Explore stack
+    ↓
+Nav2 (Behavior Trees - internal)                   ← Explore stack
+    ↓
+Dome2 Platform (Motion, Odometry, IMU, Camera)     ← Base platform
+</code></pre>
+<h3 id="exploration-package-decision">Exploration Package Decision</h3>
+<p><strong>Selected: Autonomous-Explorer-and-Mapper-ros2-nav2</strong></p>
+<p>This package was specifically designed for SLAM Toolbox + Nav2 + ROS2 Humble/Jazzy. It handles dynamic map updates from SLAM Toolbox correctly, implements frontier-based exploration with dynamic goal selection, includes built-in recovery behaviors for localization failures, and provides a lightweight, focused implementation. Source: <a href="https://github.com/AniArka/Autonomous-Explorer-and-Mapper-ros2-nav2">https://github.com/AniArka/Autonomous-Explorer-and-Mapper-ros2-nav2</a></p>
+<p><strong>Why not m-explore-ros2:</strong> This package has a known incompatibility with SLAM Toolbox (Issue #10 since Dec 2021). It was designed for gmapping and doesn't handle SLAM Toolbox's dynamic map growth. The map merging algorithm breaks with SLAM Toolbox. Source: <a href="https://github.com/robo-friends/m-explore-ros2/issues/10">https://github.com/robo-friends/m-explore-ros2/issues/10</a></p>
+<p><strong>Alternative Options:</strong> Custom implementation (~200-300 lines Python) or other community packages (ROS2-FrontierBaseExplorationForAutonomousRobot, AutoFrontierSearch_ros2-humble).</p>
+<h3 id="deployment--development-workflow">Deployment &amp; Development Workflow</h3>
+<p><strong>Installation Approach:</strong> Native ROS2 installation is used. ROS2 Jazzy is installed directly on the robot (Raspberry Pi 5) without Docker containers, providing simpler setup and better performance on the embedded platform. Standard apt package management handles ROS2 packages.</p>
+<p><strong>Source Control:</strong> Git and GitHub are used for version control. Git manages all robot code, GitHub serves as the remote repository, and updates are deployed by pulling from GitHub on the robot.</p>
+<p><strong>Update Process:</strong></p>
+<pre><code class="language-bash"><span class="hljs-comment"># On robot:</span>
+<span class="hljs-built_in">cd</span> ~/ros2_ws/src/explore
+git pull origin main
+<span class="hljs-built_in">cd</span> ~/ros2_ws
+colcon build --packages-select explore_*
+<span class="hljs-built_in">source</span> install/setup.bash
+<span class="hljs-comment"># Restart relevant nodes</span>
+</code></pre>
+<p><strong>Development Workflow:</strong> Development and testing occur on a development machine or directly on the robot. Changes are committed and pushed to GitHub, then pulled on the robot for deployment. Branches are used for experimental features.</p>
+<h3 id="how-frontier-exploration-works">How Frontier Exploration Works</h3>
+<p><strong>Component Integration:</strong></p>
+<p>SLAM Toolbox runs continuously, subscribing to <code>/scan</code> and <code>/odom</code>, publishing <code>/map</code> (occupancy grid with free/occupied/unknown cells), and providing localization services.</p>
+<p>Nav2 (the navigation stack) uses <code>/map</code> from SLAM Toolbox, plans paths through free space, and drives the robot to goal poses.</p>
+<p>Autonomous Explorer handles frontier detection by subscribing to <code>/map</code> from SLAM Toolbox, analyzing the map to find frontiers (edges between known free space and unknown), scoring/ranking frontiers (preferring closest frontier for efficiency), and publishing goal poses to Nav2's NavigateToPose action.</p>
+<p><strong>The Exploration Loop:</strong></p>
+<p>SLAM Toolbox publishes an updated map → Autonomous Explorer detects frontiers in the map → Autonomous Explorer picks the closest frontier → Autonomous Explorer sends goal to Nav2 NavigateToPose → Nav2 plans path and drives robot to frontier → Robot reaches frontier, lidar sees new area → SLAM Toolbox updates map with new data → Loop repeats until no frontiers remain.</p>
+<h2 id="control--monitoring">Control &amp; Monitoring</h2>
+<h3 id="control-interface">Control Interface</h3>
+<p><strong>Approach:</strong> The system uses a TUI (Text User Interface) combined with visualization tools.</p>
+<p><strong>Primary Control - TUI:</strong> A terminal-based dashboard using Python's <code>textual</code> library provides live updating telemetry display, interactive keyboard controls, an event log with recent activity, and color-coded status indicators. It runs via SSH, requiring no GUI.</p>
+<p><strong>TUI Layout:</strong></p>
+<pre><code>╔═══════════════════════════════════════════════════════════════╗
+║                     EXPLORE MISSION CONTROL                   ║
+╠═══════════════════════════════════════════════════════════════╣
+║ Mission State:  EXPLORING                    Uptime: 12:34    ║
+║ Coverage:       68%                          Objects: 5       ║
+║ Position:       (3.2, -1.5, 45°)                              ║
+╠═══════════════════════════════════════════════════════════════╣
+║ CONTROLS:                                                     ║
+║   [S] Start Mission    [T] Stop &amp; Return    [E] Emergency    ║
+║   [P] Pause            [R] Resume           [Q] Quit TUI     ║
+╠═══════════════════════════════════════════════════════════════╣
+║ RECENT EVENTS:                                                ║
+║  12:34:15  Frontier reached at (2.5, -3.1)                   ║
+║  12:32:08  Object detected: bottle (0.89)                    ║
+║  12:30:45  Navigation recovery: obstacle cleared             ║
+╠═══════════════════════════════════════════════════════════════╣
+║ SENSOR STATUS:  LIDAR: ✓  CAMERA: ✓  IMU: ✓  MOTORS: ✓      ║
+╚═══════════════════════════════════════════════════════════════╝
+</code></pre>
+<p><strong>Visualization Tool:</strong> Foxglove Studio (primary) or RViz2 provides browser-based access for remote monitoring. Users can view the map, robot position, and sensor data from a networked laptop or desktop.</p>
+<p><strong>Remote Access:</strong> SSH to the Pi 5 launches the TUI. Foxglove/RViz2 provides detailed visualization. Log files enable post-mission analysis.</p>
+<h2 id="directory-structure">Directory Structure</h2>
+<h3 id="prerequisites">Prerequisites</h3>
+<p>This semantic mapping application (Explore) assumes the Dome2 base platform is already installed and working. The Dome2 platform provides motion control and odometry publishing on <code>/cmd_vel</code> and <code>/odom</code>, lidar driver publishing on <code>/scan</code>, camera driver publishing on <code>/camera/rgb</code> and <code>/camera/depth</code>, and IMU publishing on <code>/imu</code>.</p>
+<p>The directory structure below contains only the Explore semantic mapping stack, not the Dome2 base platform.</p>
+<h3 id="ros2-workspace-layout">ROS2 Workspace Layout</h3>
+<pre><code>~/ros2_ws/                               # ROS2 workspace root
+├── src/
+│   ├── dome2/                           # (Prerequisite) Base robot platform
+│   │   └── [motion, odometry, IMU, camera drivers - not shown]
+│   │
+│   ├── explore/                         # Semantic mapping application stack
+│   │   ├── explore_bringup/             # Launch files and startup
+│   │   │   ├── launch/
+│   │   │   │   ├── exploration_full.launch.py # Complete exploration system
+│   │   │   │   ├── slam.launch.py             # SLAM Toolbox only
+│   │   │   │   ├── nav2.launch.py             # Nav2 stack only
+│   │   │   │   └── exploration.launch.py      # Exploration only
+│   │   │   ├── config/
+│   │   │   │   ├── config.yaml                # Main configuration
+│   │   │   │   ├── config_test.yaml           # Testing overrides
+│   │   │   │   ├── slam_params.yaml           # SLAM Toolbox params
+│   │   │   │   ├── nav2_params.yaml           # Nav2 params
+│   │   │   │   └── robot_description.urdf     # Robot model
+│   │   │   ├── rviz/
+│   │   │   │   └── explore.rviz               # RViz configuration
+│   │   │   ├── package.xml
+│   │   │   ├── setup.py
+│   │   │   └── CMakeLists.txt
+│   │   │
+│   │   ├── explore_msgs/                # Custom message definitions
+│   │   │   ├── msg/
+│   │   │   │   ├── MissionState.msg           # Mission status
+│   │   │   │   ├── ObjectDetection.msg        # Detected object
+│   │   │   │   ├── ObjectCatalog.msg          # List of objects
+│   │   │   │   └── ExplorationStatus.msg      # Exploration progress
+│   │   │   ├── srv/
+│   │   │   │   ├── StartMission.srv           # Start exploration
+│   │   │   │   ├── StopMission.srv            # Stop and return
+│   │   │   │   └── GetObjectCatalog.srv       # Retrieve detected objects
+│   │   │   ├── action/
+│   │   │   │   └── ExploreMission.action      # Full mission action
+│   │   │   ├── package.xml
+│   │   │   └── CMakeLists.txt
+│   │   │
+│   │   ├── explore_navigation/           # Navigation extensions
+│   │   │   ├── explore_navigation/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── stuck_detector.py          # Stuck detection logic
+│   │   │   │   ├── recovery_manager.py        # Recovery coordination
+│   │   │   │   └── nav_monitor.py             # Nav2 status monitoring
+│   │   │   ├── test/
+│   │   │   │   └── test_stuck_detector.py
+│   │   │   ├── package.xml
+│   │   │   ├── setup.py
+│   │   │   └── README.md
+│   │   │
+│   │   ├── explore_exploration/          # Exploration logic
+│   │   │   ├── explore_exploration/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── explorer_node.py           # Main exploration node
+│   │   │   │   ├── frontier_detector.py       # Frontier identification
+│   │   │   │   ├── frontier_selector.py       # Goal selection
+│   │   │   │   └── exploration_manager.py     # State coordination
+│   │   │   ├── test/
+│   │   │   │   ├── test_frontier_detector.py
+│   │   │   │   └── test_frontier_selector.py
+│   │   │   ├── package.xml
+│   │   │   ├── setup.py
+│   │   │   └── README.md
+│   │   │
+│   │   ├── explore_perception/           # Object detection
+│   │   │   ├── explore_perception/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── object_detector.py         # MobileNet-SSD detector
+│   │   │   │   ├── object_catalog.py          # Object tracking
+│   │   │   │   └── depth_processor.py         # 3D position estimation
+│   │   │   ├── models/
+│   │   │   │   └── mobilenet_ssd/             # Model files
+│   │   │   ├── test/
+│   │   │   │   └── test_object_detector.py
+│   │   │   ├── package.xml
+│   │   │   ├── setup.py
+│   │   │   └── README.md
+│   │   │
+│   │   ├── explore_mission/              # Mission control
+│   │   │   ├── explore_mission/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── mission_manager.py         # State machine
+│   │   │   │   ├── return_to_home.py          # Return navigation
+│   │   │   │   └── diagnostics.py             # System health monitoring
+│   │   │   ├── test/
+│   │   │   │   └── test_mission_manager.py
+│   │   │   ├── package.xml
+│   │   │   ├── setup.py
+│   │   │   └── README.md
+│   │   │
+│   │   ├── explore_tui/                  # Text User Interface
+│   │   │   ├── explore_tui/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── main_app.py                # Textual app
+│   │   │   │   ├── widgets/
+│   │   │   │   │   ├── status_panel.py        # Mission status display
+│   │   │   │   │   ├── map_preview.py         # ASCII map view
+│   │   │   │   │   ├── control_panel.py       # Control buttons
+│   │   │   │   │   └── event_log.py           # Event history
+│   │   │   │   └── ros_bridge.py              # ROS2 interface
+│   │   │   ├── test/
+│   │   │   │   └── test_tui.py
+│   │   │   ├── package.xml
+│   │   │   ├── setup.py
+│   │   │   └── README.md
+│   │   │
+│   │   ├── explore_utils/                # Shared utilities
+│   │   │   ├── explore_utils/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── config_loader.py           # YAML config loading
+│   │   │   │   ├── transforms.py              # TF utilities
+│   │   │   │   ├── logging.py                 # Logging setup
+│   │   │   │   └── math_utils.py              # Common calculations
+│   │   │   ├── test/
+│   │   │   │   └── test_config_loader.py
+│   │   │   ├── package.xml
+│   │   │   ├── setup.py
+│   │   │   └── README.md
+│   │   │
+│   │   ├── docs/                         # Documentation
+│   │   │   ├── README.md                      # Project overview
+│   │   │   ├── ARCHITECTURE.md                # System architecture
+│   │   │   ├── SETUP.md                       # Installation guide
+│   │   │   ├── USAGE.md                       # User guide
+│   │   │   ├── DEVELOPMENT.md                 # Developer guide
+│   │   │   ├── TESTING.md                     # Testing strategy
+│   │   │   └── TROUBLESHOOTING.md             # Common issues
+│   │   │
+│   │   ├── scripts/                      # Utility scripts
+│   │   │   ├── install_dependencies.sh        # Dependency setup
+│   │   │   ├── build_workspace.sh             # Colcon build
+│   │   │   ├── start_mission.sh               # Launch wrapper
+│   │   │   ├── calibrate_robot.sh             # Calibration helper
+│   │   │   └── backup_config.sh               # Config backup
+│   │   │
+│   │   ├── tests/                        # Integration tests
+│   │   │   ├── integration/
+│   │   │   │   ├── test_full_mission.py       # End-to-end test
+│   │   │   │   ├── test_slam_nav2.py          # SLAM + Nav2
+│   │   │   │   └── test_exploration.py        # Exploration loop
+│   │   │   └── fixtures/
+│   │   │       ├── test_maps/                 # Sample maps
+│   │   │       └── test_configs/              # Test configs
+│   │   │
+│   │   ├── .github/                      # GitHub workflows
+│   │   │   └── workflows/
+│   │   │       ├── build_test.yml             # CI/CD pipeline
+│   │   │       └── lint.yml                   # Code quality
+│   │   │
+│   │   ├── .gitignore
+│   │   ├── README.md
+│   │   ├── LICENSE
+│   │   └── requirements.txt              # Python dependencies
+│   │
+│   └── external/                         # Third-party packages
+│       ├── slam_toolbox/                 # (apt install recommended)
+│       ├── nav2/                         # (apt install recommended)
+│       └── autonomous_explorer/          # Cloned from GitHub
+│
+├── build/                                # Build artifacts (gitignored)
+├── install/                              # Install space (gitignored)
+└── log/                                  # Build logs (gitignored)
+
+# Runtime directories (outside workspace)
+/var/log/explore/                        # Runtime logs
+    ├── missions/                         # Mission-specific logs
+    │   ├── mission_20260122_143025/
+    │   │   ├── mission.log
+    │   │   ├── nav2.log
+    │   │   ├── slam.log
+    │   │   └── rosbag/
+    │   │       └── mission.db3
+    │   └── mission_20260122_154512/
+    │       └── ...
+    └── system.log                        # System-wide log
+
+~/data/explore/                          # Persistent data
+    ├── maps/                             # Saved maps
+    │   ├── home_floor1_20260122.yaml
+    │   └── home_floor1_20260122.pgm
+    ├── object_detections/                # Detected objects
+    │   ├── catalog_20260122.json
+    │   └── images/
+    │       ├── bottle_001.jpg
+    │       └── chair_005.jpg
+    └── configs/                          # Config backups
+        └── config_20260122.yaml.bak
+
+/tmp/explore/                            # Temporary runtime data
+    ├── current_mission_state.json
+    └── diagnostics.json
+</code></pre>
+<h3 id="package-responsibilities">Package Responsibilities</h3>
+<p>Note that the hardware interface (motors, sensors, odometry, IMU, camera) is provided by the Dome2 base platform and not included in the Explore stack.</p>
+<p><strong>explore_bringup</strong> handles system startup and configuration. It contains launch files for different system configurations, manages central configuration, and stores the robot description (URDF).</p>
+<p><strong>explore_msgs</strong> defines custom messages for mission state, objects, and exploration; service definitions for control commands; and action definitions for long-running operations.</p>
+<p><strong>explore_navigation</strong> provides navigation extensions including stuck detection logic, recovery behavior coordination, and Nav2 monitoring and feedback.</p>
+<p><strong>explore_exploration</strong> implements autonomous exploration with frontier detection and clustering, frontier selection strategies, exploration state management, and integration with the Autonomous-Explorer package.</p>
+<p><strong>explore_perception</strong> handles object detection and tracking using the MobileNet-SSD detector on Oak-d-lite, object catalog management, and 3D position estimation using depth data.</p>
+<p><strong>explore_mission</strong> manages mission control with a high-level state machine, return-to-home logic, mission completion detection, and system diagnostics.</p>
+<p><strong>explore_tui</strong> provides the user interface via a terminal dashboard (textual library), real-time telemetry display, mission control commands, and event logging.</p>
+<p><strong>explore_utils</strong> contains shared utilities for configuration loading, transform utilities, logging setup, and common math functions.</p>
+<h3 id="key-files">Key Files</h3>
+<p><strong>Configuration:</strong> The <code>config/config.yaml</code> file serves as the single source of truth for all parameters. SLAM Toolbox specific parameters reside in <code>config/slam_params.yaml</code>, while Nav2 specific parameters are in <code>config/nav2_params.yaml</code>.</p>
+<p><strong>Launch:</strong> The <code>launch/exploration_full.launch.py</code> file starts the complete Explore semantic mapping system. Individual component launches are available for testing SLAM, Nav2, and exploration separately. These assume Dome2 base platform nodes are already running.</p>
+<p><strong>Documentation:</strong> The <code>docs/ARCHITECTURE.md</code> file matches this design document. Installation and setup instructions are in <code>docs/SETUP.md</code>, while <code>docs/USAGE.md</code> explains how to run missions.</p>
+<p><strong>Scripts:</strong> The <code>scripts/start_mission.sh</code> script provides a user-friendly mission launcher, while <code>scripts/install_dependencies.sh</code> enables one-step dependency installation.</p>
+<h3 id="development-workflow-files">Development Workflow Files</h3>
+<p><strong>.gitignore:</strong></p>
+<pre><code># ROS2 build artifacts
+build/
+install/
+log/
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+
+# Runtime data
+/tmp/explore/
+*.bag
+*.db3
+
+# Logs
+*.log
+</code></pre>
+<p><strong>requirements.txt:</strong></p>
+<pre><code>textual&gt;=0.40.0      # TUI library
+pyyaml&gt;=6.0          # Config loading
+numpy&gt;=1.24.0        # Math operations
+opencv-python&gt;=4.8.0 # Image processing
+</code></pre>
+<h3 id="file-organization-principles">File Organization Principles</h3>
+<p><strong>Separation of Concerns:</strong> Each package has a single, clear responsibility. The hardware interface is isolated from high-level logic, and configuration is separate from code.</p>
+<p><strong>Testing:</strong> Unit tests reside alongside source files. Integration tests are in the top-level tests/ directory. Test fixtures are centralized.</p>
+<p><strong>Documentation:</strong> Each package includes a <a href="http://README.html">README.md</a>. Top-level docs/ contains system-wide documentation. Inline code comments explain complex logic.</p>
+<p><strong>Configuration Management:</strong> All parameters are in config.yaml. Environment-specific overrides handle test and simulation scenarios. Runtime parameter updates use ROS2 parameters.</p>
+<h2 id="project-plan">Project Plan</h2>
+<h3 id="overall-approach">Overall Approach</h3>
+<p>Development follows an incremental approach with continuous testing. Each phase is independently testable.</p>
+<h3 id="phase-1-baseline-verification--configuration">Phase 1: Baseline Verification &amp; Configuration</h3>
+<p><strong>Goal:</strong> Verify Dome2 base platform is working and establish baseline configuration for Explore stack.</p>
+<p><strong>Prerequisites:</strong> Dome2 base platform complete with working sensors and motor control.</p>
+<p><strong>Tasks:</strong></p>
+<ul>
+<li>Verify ROS2 Jazzy installation and configuration</li>
+<li>Verify Dome2 hardware topics (<code>/scan</code>, <code>/odom</code>, <code>/imu</code>, <code>/camera/*</code>, <code>/cmd_vel</code>) publishing correctly</li>
+<li>Test Dome2 teleoperation and sensor data</li>
+<li>Install SLAM Toolbox and Nav2 for Explore stack</li>
+<li>Document current Dome2 system state and topic structure</li>
+<li>Create initial config.yaml for Explore semantic mapping application</li>
+<li>Set up development environment (Foxglove, git repo for Explore)</li>
+</ul>
+<p><strong>Success Criteria:</strong></p>
+<ul>
+<li>Dome2 sensors publishing on expected topics</li>
+<li>Robot responds to <code>/cmd_vel</code> commands via Dome2</li>
+<li>Can teleoperate robot and see sensor data</li>
+<li>Git repository created for Explore semantic mapping stack</li>
+<li>Development tools (Foxglove, git) set up</li>
+</ul>
+<p><strong>Duration:</strong> 1 week</p>
+<h3 id="phase-2-slam--navigation-stack">Phase 2: SLAM &amp; Navigation Stack</h3>
+<p><strong>Goal:</strong> Robot navigates autonomously to goals while avoiding obstacles.</p>
+<p><strong>Tasks:</strong></p>
+<ul>
+<li>Configure SLAM Toolbox for 2D mapping</li>
+<li>Set up Nav2 navigation stack</li>
+<li>Tune costmap parameters (inflation, obstacle marking)</li>
+<li>Configure path planner</li>
+<li>Tune controller parameters for differential drive</li>
+<li>Test navigation in controlled environment</li>
+</ul>
+<p><strong>Success Criteria:</strong></p>
+<ul>
+<li>SLAM builds accurate map while teleoperating</li>
+<li>Can set goal in Foxglove and robot navigates there</li>
+<li>Robot avoids static obstacles reliably</li>
+<li>Localization remains stable during navigation</li>
+<li>Robot navigates through doorways</li>
+</ul>
+<p><strong>Duration:</strong> 2-3 weeks</p>
+<h3 id="phase-3-autonomous-exploration">Phase 3: Autonomous Exploration</h3>
+<p><strong>Goal:</strong> Robot explores autonomously without manual goals.</p>
+<p><strong>Tasks:</strong></p>
+<ul>
+<li>Integrate Autonomous-Explorer-and-Mapper-ros2-nav2 package</li>
+<li>Configure exploration parameters (frontier detection, goal selection)</li>
+<li>Implement mission manager state machine</li>
+<li>Implement return-to-home behavior</li>
+<li>Add exploration completion detection</li>
+<li>Test full exploration run in test environment</li>
+</ul>
+<p><strong>Success Criteria:</strong></p>
+<ul>
+<li>Robot autonomously explores unknown space</li>
+<li>Frontiers identified and prioritized correctly</li>
+<li>Exploration terminates when complete</li>
+<li>Robot returns to starting position</li>
+<li>Map saved successfully after mission</li>
+</ul>
+<p><strong>Duration:</strong> 2 weeks</p>
+<h3 id="phase-4-object-detection--cataloging">Phase 4: Object Detection &amp; Cataloging</h3>
+<p><strong>Goal:</strong> Detect and catalog objects during exploration.</p>
+<p><strong>Tasks:</strong></p>
+<ul>
+<li>Set up MobileNet-SSD on Oak-d-lite</li>
+<li>Implement object detection ROS2 node</li>
+<li>Create object catalog data structure</li>
+<li>Integrate detection with mission manager</li>
+<li>Add object position calculation (map coordinates)</li>
+<li>Store detected objects with timestamps and images</li>
+</ul>
+<p><strong>Success Criteria:</strong></p>
+<ul>
+<li>Objects detected in real-time during exploration</li>
+<li>Object positions accurately recorded on map</li>
+<li>Object catalog saved with map data</li>
+<li>False positive rate acceptable</li>
+</ul>
+<p><strong>Duration:</strong> 1-2 weeks</p>
+<h3 id="phase-5-mission-control--monitoring">Phase 5: Mission Control &amp; Monitoring</h3>
+<p><strong>Goal:</strong> Complete user interface for mission control.</p>
+<p><strong>Tasks:</strong></p>
+<ul>
+<li>Implement TUI with real-time telemetry display</li>
+<li>Add mission control commands (start/stop/emergency)</li>
+<li>Implement diagnostics monitoring</li>
+<li>Add event logging system</li>
+<li>Create data export functionality</li>
+<li>Test full mission workflow end-to-end</li>
+</ul>
+<p><strong>Success Criteria:</strong></p>
+<ul>
+<li>TUI provides clear mission status</li>
+<li>All control commands work reliably</li>
+<li>Mission data easily accessible post-mission</li>
+<li>User can run full mission without technical intervention</li>
+</ul>
+<p><strong>Duration:</strong> 1 week</p>
+<h3 id="testing-strategy">Testing Strategy</h3>
+<p><strong>Unit Testing</strong> covers individual node functionality (motors, sensors, detection), state machine transitions, and data structure operations.</p>
+<p><strong>Integration Testing</strong> validates SLAM + Navigation together, Exploration + Object Detection, and the full system with all components.</p>
+<p><strong>Field Testing</strong> includes scenarios with multiple rooms with varied layouts, different lighting conditions, wood/carpet transitions, doorway navigation scenarios, and recovery behavior validation.</p>
+<h3 id="phase-dependencies">Phase Dependencies</h3>
+<p>Phase 1 must complete before Phase 2 (need working sensors for SLAM). Phase 2 must complete before Phase 3 (need navigation for exploration). Phase 3 and Phase 4 can partially overlap (exploration works without object detection). Phase 5 can be developed incrementally alongside other phases.</p>
+<h2 id="configuration-management">Configuration Management</h2>
+<h3 id="configuration-philosophy">Configuration Philosophy</h3>
+<p>All tunable parameters are centralized in a single <code>config.yaml</code> file for easy adjustment without code changes. This supports iterative tuning and field deployment.</p>
+<h3 id="proposed-configyaml-structure">Proposed config.yaml Structure</h3>
+<pre><code class="language-yaml"><span class="hljs-comment"># Explore Robot Configuration</span>
+<span class="hljs-comment"># All customizable parameters for autonomous exploration</span>
+
+<span class="hljs-attr">robot:</span>
+  <span class="hljs-attr">name:</span> <span class="hljs-string">&quot;explore&quot;</span>
+  <span class="hljs-attr">base_frame:</span> <span class="hljs-string">&quot;base_link&quot;</span>
+  <span class="hljs-attr">odom_frame:</span> <span class="hljs-string">&quot;odom&quot;</span>
+  <span class="hljs-attr">map_frame:</span> <span class="hljs-string">&quot;map&quot;</span>
+
+<span class="hljs-comment"># Hardware Configuration</span>
+<span class="hljs-attr">hardware:</span>
+  <span class="hljs-attr">differential_drive:</span>
+    <span class="hljs-attr">wheel_separation:</span> <span class="hljs-number">0.28</span>  <span class="hljs-comment"># meters</span>
+    <span class="hljs-attr">wheel_radius:</span> <span class="hljs-number">0.065</span>     <span class="hljs-comment"># meters</span>
+    <span class="hljs-attr">max_linear_velocity:</span> <span class="hljs-number">0.5</span>   <span class="hljs-comment"># m/s (conservative for reliability)</span>
+    <span class="hljs-attr">max_angular_velocity:</span> <span class="hljs-number">1.0</span>  <span class="hljs-comment"># rad/s</span>
+    <span class="hljs-attr">acceleration_limit:</span> <span class="hljs-number">0.3</span>    <span class="hljs-comment"># m/s^2</span>
+
+  <span class="hljs-attr">lidar:</span>
+    <span class="hljs-attr">topic:</span> <span class="hljs-string">&quot;/scan&quot;</span>
+    <span class="hljs-attr">frame_id:</span> <span class="hljs-string">&quot;lidar_link&quot;</span>
+    <span class="hljs-attr">min_range:</span> <span class="hljs-number">0.15</span>      <span class="hljs-comment"># meters</span>
+    <span class="hljs-attr">max_range:</span> <span class="hljs-number">12.0</span>      <span class="hljs-comment"># meters</span>
+
+  <span class="hljs-attr">camera:</span>
+    <span class="hljs-attr">topic_rgb:</span> <span class="hljs-string">&quot;/camera/rgb&quot;</span>
+    <span class="hljs-attr">topic_depth:</span> <span class="hljs-string">&quot;/camera/depth&quot;</span>
+    <span class="hljs-attr">frame_id:</span> <span class="hljs-string">&quot;camera_link&quot;</span>
+    <span class="hljs-attr">fps:</span> <span class="hljs-number">15</span>              <span class="hljs-comment"># frames per second</span>
+    <span class="hljs-attr">resolution_width:</span> <span class="hljs-number">640</span>
+    <span class="hljs-attr">resolution_height:</span> <span class="hljs-number">480</span>
+
+<span class="hljs-comment"># SLAM Toolbox Configuration</span>
+<span class="hljs-attr">slam:</span>
+  <span class="hljs-attr">mode:</span> <span class="hljs-string">&quot;async&quot;</span>          <span class="hljs-comment"># async or sync</span>
+  <span class="hljs-attr">resolution:</span> <span class="hljs-number">0.05</span>       <span class="hljs-comment"># meters per cell (5cm resolution)</span>
+  <span class="hljs-attr">update_rate:</span> <span class="hljs-number">5.0</span>       <span class="hljs-comment"># Hz</span>
+
+  <span class="hljs-comment"># Loop closure</span>
+  <span class="hljs-attr">loop_closure_enabled:</span> <span class="hljs-literal">true</span>
+  <span class="hljs-attr">min_loop_closure_distance:</span> <span class="hljs-number">3.0</span>  <span class="hljs-comment"># meters</span>
+  <span class="hljs-attr">loop_search_maximum_distance:</span> <span class="hljs-number">5.0</span>
+
+  <span class="hljs-comment"># Scan matching</span>
+  <span class="hljs-attr">scan_buffer_size:</span> <span class="hljs-number">10</span>
+  <span class="hljs-attr">minimum_travel_distance:</span> <span class="hljs-number">0.2</span>    <span class="hljs-comment"># meters before updating</span>
+  <span class="hljs-attr">minimum_travel_heading:</span> <span class="hljs-number">0.2</span>     <span class="hljs-comment"># radians before updating</span>
+
+  <span class="hljs-comment"># Map management</span>
+  <span class="hljs-attr">map_update_interval:</span> <span class="hljs-number">1.0</span>        <span class="hljs-comment"># seconds</span>
+
+<span class="hljs-comment"># Nav2 Configuration</span>
+<span class="hljs-attr">navigation:</span>
+  <span class="hljs-comment"># Controller parameters</span>
+  <span class="hljs-attr">controller:</span>
+    <span class="hljs-attr">type:</span> <span class="hljs-string">&quot;dwb&quot;</span>          <span class="hljs-comment"># DWB local planner</span>
+    <span class="hljs-attr">max_vel_x:</span> <span class="hljs-number">0.4</span>       <span class="hljs-comment"># m/s (conservative)</span>
+    <span class="hljs-attr">min_vel_x:</span> <span class="hljs-number">-0.2</span>      <span class="hljs-comment"># m/s (backing up)</span>
+    <span class="hljs-attr">max_vel_theta:</span> <span class="hljs-number">0.8</span>   <span class="hljs-comment"># rad/s</span>
+    <span class="hljs-attr">min_speed_xy:</span> <span class="hljs-number">0.1</span>    <span class="hljs-comment"># m/s (minimum to maintain)</span>
+    <span class="hljs-attr">acc_lim_x:</span> <span class="hljs-number">0.3</span>       <span class="hljs-comment"># m/s^2</span>
+    <span class="hljs-attr">acc_lim_theta:</span> <span class="hljs-number">1.0</span>   <span class="hljs-comment"># rad/s^2</span>
+
+  <span class="hljs-comment"># Planner parameters</span>
+  <span class="hljs-attr">planner:</span>
+    <span class="hljs-attr">type:</span> <span class="hljs-string">&quot;NavFn&quot;</span>        <span class="hljs-comment"># or &quot;SmacPlanner&quot;</span>
+    <span class="hljs-attr">tolerance:</span> <span class="hljs-number">0.2</span>       <span class="hljs-comment"># meters to goal</span>
+    <span class="hljs-attr">use_astar:</span> <span class="hljs-literal">false</span>     <span class="hljs-comment"># Dijkstra for reliability</span>
+
+  <span class="hljs-comment"># Costmap parameters</span>
+  <span class="hljs-attr">costmap:</span>
+    <span class="hljs-attr">global:</span>
+      <span class="hljs-attr">width:</span> <span class="hljs-number">50.0</span>           <span class="hljs-comment"># meters</span>
+      <span class="hljs-attr">height:</span> <span class="hljs-number">50.0</span>          <span class="hljs-comment"># meters</span>
+      <span class="hljs-attr">resolution:</span> <span class="hljs-number">0.05</span>      <span class="hljs-comment"># meters per cell</span>
+      <span class="hljs-attr">robot_radius:</span> <span class="hljs-number">0.20</span>    <span class="hljs-comment"># meters (conservative)</span>
+      <span class="hljs-attr">inflation_radius:</span> <span class="hljs-number">0.4</span> <span class="hljs-comment"># meters</span>
+      <span class="hljs-attr">cost_scaling_factor:</span> <span class="hljs-number">3.0</span>
+
+    <span class="hljs-attr">local:</span>
+      <span class="hljs-attr">width:</span> <span class="hljs-number">5.0</span>
+      <span class="hljs-attr">height:</span> <span class="hljs-number">5.0</span>
+      <span class="hljs-attr">resolution:</span> <span class="hljs-number">0.05</span>
+      <span class="hljs-attr">robot_radius:</span> <span class="hljs-number">0.20</span>
+      <span class="hljs-attr">inflation_radius:</span> <span class="hljs-number">0.3</span>
+
+    <span class="hljs-attr">obstacle_layer:</span>
+      <span class="hljs-attr">enabled:</span> <span class="hljs-literal">true</span>
+      <span class="hljs-attr">max_obstacle_height:</span> <span class="hljs-number">2.0</span>
+      <span class="hljs-attr">combination_method:</span> <span class="hljs-number">1</span>  <span class="hljs-comment"># Max</span>
+
+  <span class="hljs-comment"># Recovery behaviors</span>
+  <span class="hljs-attr">recovery:</span>
+    <span class="hljs-attr">enabled:</span> <span class="hljs-literal">true</span>
+    <span class="hljs-attr">max_retries:</span> <span class="hljs-number">3</span>
+    <span class="hljs-attr">retry_timeout:</span> <span class="hljs-number">30.0</span>        <span class="hljs-comment"># seconds</span>
+    <span class="hljs-attr">behaviors:</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-string">rotate_recovery</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-string">back_up_recovery</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-string">wait_recovery</span>
+
+<span class="hljs-comment"># Exploration Configuration</span>
+<span class="hljs-attr">exploration:</span>
+  <span class="hljs-attr">update_frequency:</span> <span class="hljs-number">5.0</span>          <span class="hljs-comment"># seconds (timer interval)</span>
+
+  <span class="hljs-comment"># Frontier detection</span>
+  <span class="hljs-attr">frontier:</span>
+    <span class="hljs-attr">min_size:</span> <span class="hljs-number">5</span>                  <span class="hljs-comment"># minimum frontier cells</span>
+    <span class="hljs-attr">min_distance:</span> <span class="hljs-number">0.5</span>            <span class="hljs-comment"># meters (filter nearby frontiers)</span>
+    <span class="hljs-attr">cluster_tolerance:</span> <span class="hljs-number">0.3</span>       <span class="hljs-comment"># meters (group nearby cells)</span>
+
+  <span class="hljs-comment"># Frontier selection</span>
+  <span class="hljs-attr">selection:</span>
+    <span class="hljs-attr">strategy:</span> <span class="hljs-string">&quot;closest&quot;</span>          <span class="hljs-comment"># closest, largest, or weighted</span>
+    <span class="hljs-attr">distance_weight:</span> <span class="hljs-number">1.0</span>         <span class="hljs-comment"># for weighted strategy</span>
+    <span class="hljs-attr">size_weight:</span> <span class="hljs-number">0.5</span>             <span class="hljs-comment"># for weighted strategy</span>
+
+  <span class="hljs-comment"># Safety</span>
+  <span class="hljs-attr">max_goal_distance:</span> <span class="hljs-number">10.0</span>        <span class="hljs-comment"># meters (don&#x27;t go too far)</span>
+  <span class="hljs-attr">blacklist_timeout:</span> <span class="hljs-number">60.0</span>        <span class="hljs-comment"># seconds (retry failed frontiers)</span>
+  <span class="hljs-attr">max_blacklist_size:</span> <span class="hljs-number">20</span>         <span class="hljs-comment"># max unreachable frontiers</span>
+
+  <span class="hljs-comment"># Completion criteria</span>
+  <span class="hljs-attr">completion:</span>
+    <span class="hljs-attr">no_frontiers_timeout:</span> <span class="hljs-number">10.0</span>   <span class="hljs-comment"># seconds to confirm done</span>
+    <span class="hljs-attr">min_frontier_threshold:</span> <span class="hljs-number">3</span>    <span class="hljs-comment"># ignore tiny frontiers at end</span>
+
+<span class="hljs-comment"># Object Detection Configuration</span>
+<span class="hljs-attr">object_detection:</span>
+  <span class="hljs-attr">enabled:</span> <span class="hljs-literal">true</span>
+  <span class="hljs-attr">model:</span> <span class="hljs-string">&quot;mobilenet_ssd&quot;</span>
+  <span class="hljs-attr">confidence_threshold:</span> <span class="hljs-number">0.7</span>      <span class="hljs-comment"># 0.0-1.0</span>
+  <span class="hljs-attr">detection_rate:</span> <span class="hljs-number">2.0</span>            <span class="hljs-comment"># Hz (detections per second)</span>
+
+  <span class="hljs-comment"># Classes to detect (COCO dataset)</span>
+  <span class="hljs-attr">target_classes:</span>
+    <span class="hljs-bullet">-</span> <span class="hljs-string">&quot;bottle&quot;</span>
+    <span class="hljs-bullet">-</span> <span class="hljs-string">&quot;cup&quot;</span>
+    <span class="hljs-bullet">-</span> <span class="hljs-string">&quot;bowl&quot;</span>
+    <span class="hljs-bullet">-</span> <span class="hljs-string">&quot;chair&quot;</span>
+    <span class="hljs-bullet">-</span> <span class="hljs-string">&quot;couch&quot;</span>
+
+  <span class="hljs-comment"># Catalog settings</span>
+  <span class="hljs-attr">catalog:</span>
+    <span class="hljs-attr">min_distance_between:</span> <span class="hljs-number">0.5</span>    <span class="hljs-comment"># meters (deduplicate nearby detections)</span>
+    <span class="hljs-attr">max_catalog_size:</span> <span class="hljs-number">100</span>        <span class="hljs-comment"># maximum objects to track</span>
+    <span class="hljs-attr">save_images:</span> <span class="hljs-literal">true</span>            <span class="hljs-comment"># capture image of detected objects</span>
+
+<span class="hljs-comment"># Mission Configuration</span>
+<span class="hljs-attr">mission:</span>
+  <span class="hljs-comment"># Timing</span>
+  <span class="hljs-attr">max_duration:</span> <span class="hljs-number">1800</span>             <span class="hljs-comment"># seconds (30 minutes)</span>
+  <span class="hljs-attr">safety_margin_duration:</span> <span class="hljs-number">300</span>    <span class="hljs-comment"># seconds (5 min buffer)</span>
+
+  <span class="hljs-comment"># Starting position</span>
+  <span class="hljs-attr">home_position:</span>
+    <span class="hljs-attr">x:</span> <span class="hljs-number">0.0</span>
+    <span class="hljs-attr">y:</span> <span class="hljs-number">0.0</span>
+    <span class="hljs-attr">theta:</span> <span class="hljs-number">0.0</span>
+
+  <span class="hljs-comment"># Return to home</span>
+  <span class="hljs-attr">return_home:</span>
+    <span class="hljs-attr">enabled:</span> <span class="hljs-literal">true</span>
+    <span class="hljs-attr">distance_tolerance:</span> <span class="hljs-number">0.3</span>      <span class="hljs-comment"># meters</span>
+    <span class="hljs-attr">angular_tolerance:</span> <span class="hljs-number">0.2</span>       <span class="hljs-comment"># radians</span>
+
+  <span class="hljs-comment"># Failure handling</span>
+  <span class="hljs-attr">failure:</span>
+    <span class="hljs-attr">localization_loss_timeout:</span> <span class="hljs-number">5.0</span>    <span class="hljs-comment"># seconds</span>
+    <span class="hljs-attr">stuck_timeout:</span> <span class="hljs-number">30.0</span>                <span class="hljs-comment"># seconds</span>
+    <span class="hljs-attr">max_recovery_attempts:</span> <span class="hljs-number">3</span>
+
+<span class="hljs-comment"># Monitoring &amp; Diagnostics</span>
+<span class="hljs-attr">monitoring:</span>
+  <span class="hljs-comment"># Status publishing</span>
+  <span class="hljs-attr">status_rate:</span> <span class="hljs-number">1.0</span>               <span class="hljs-comment"># Hz</span>
+
+  <span class="hljs-comment"># Health checks</span>
+  <span class="hljs-attr">health_check_interval:</span> <span class="hljs-number">5.0</span>     <span class="hljs-comment"># seconds</span>
+
+  <span class="hljs-comment"># Thresholds</span>
+  <span class="hljs-attr">thresholds:</span>
+    <span class="hljs-attr">min_battery_voltage:</span> <span class="hljs-number">11.0</span>    <span class="hljs-comment"># volts (if monitoring)</span>
+    <span class="hljs-attr">max_cpu_usage:</span> <span class="hljs-number">85.0</span>          <span class="hljs-comment"># percent</span>
+    <span class="hljs-attr">max_memory_usage:</span> <span class="hljs-number">80.0</span>       <span class="hljs-comment"># percent</span>
+    <span class="hljs-attr">min_lidar_points:</span> <span class="hljs-number">100</span>        <span class="hljs-comment"># per scan</span>
+
+  <span class="hljs-comment"># Logging</span>
+  <span class="hljs-attr">logging:</span>
+    <span class="hljs-attr">level:</span> <span class="hljs-string">&quot;INFO&quot;</span>                <span class="hljs-comment"># DEBUG, INFO, WARN, ERROR</span>
+    <span class="hljs-attr">log_to_file:</span> <span class="hljs-literal">true</span>
+    <span class="hljs-attr">log_directory:</span> <span class="hljs-string">&quot;/var/log/explore&quot;</span>
+    <span class="hljs-attr">max_log_size_mb:</span> <span class="hljs-number">100</span>
+
+<span class="hljs-comment"># TUI Configuration</span>
+<span class="hljs-attr">tui:</span>
+  <span class="hljs-attr">refresh_rate:</span> <span class="hljs-number">2.0</span>              <span class="hljs-comment"># Hz</span>
+  <span class="hljs-attr">show_map_preview:</span> <span class="hljs-literal">false</span>        <span class="hljs-comment"># ASCII map in TUI (resource intensive)</span>
+  <span class="hljs-attr">color_enabled:</span> <span class="hljs-literal">true</span>
+
+  <span class="hljs-comment"># Display options</span>
+  <span class="hljs-attr">display:</span>
+    <span class="hljs-attr">position_precision:</span> <span class="hljs-number">2</span>        <span class="hljs-comment"># decimal places</span>
+    <span class="hljs-attr">percentage_precision:</span> <span class="hljs-number">1</span>      <span class="hljs-comment"># decimal places</span>
+
+<span class="hljs-comment"># Development &amp; Testing</span>
+<span class="hljs-attr">development:</span>
+  <span class="hljs-attr">simulation_mode:</span> <span class="hljs-literal">false</span>         <span class="hljs-comment"># use simulated sensors</span>
+  <span class="hljs-attr">debug_visualization:</span> <span class="hljs-literal">false</span>     <span class="hljs-comment"># extra RViz markers</span>
+  <span class="hljs-attr">record_rosbag:</span> <span class="hljs-literal">false</span>           <span class="hljs-comment"># auto-record missions</span>
+  <span class="hljs-attr">rosbag_topics:</span>
+    <span class="hljs-bullet">-</span> <span class="hljs-string">&quot;/scan&quot;</span>
+    <span class="hljs-bullet">-</span> <span class="hljs-string">&quot;/map&quot;</span>
+    <span class="hljs-bullet">-</span> <span class="hljs-string">&quot;/odom&quot;</span>
+    <span class="hljs-bullet">-</span> <span class="hljs-string">&quot;/camera/rgb&quot;</span>
+</code></pre>
+<h3 id="configuration-usage">Configuration Usage</h3>
+<p><strong>Loading Configuration:</strong> Python code loads the configuration using YAML:</p>
+<pre><code class="language-python"><span class="hljs-keyword">import</span> yaml
+<span class="hljs-keyword">from</span> pathlib <span class="hljs-keyword">import</span> Path
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">load_config</span>():
+    config_path = Path(__file__).parent / <span class="hljs-string">&#x27;config.yaml&#x27;</span>
+    <span class="hljs-keyword">with</span> <span class="hljs-built_in">open</span>(config_path, <span class="hljs-string">&#x27;r&#x27;</span>) <span class="hljs-keyword">as</span> f:
+        <span class="hljs-keyword">return</span> yaml.safe_load(f)
+
+config = load_config()
+max_velocity = config[<span class="hljs-string">&#x27;navigation&#x27;</span>][<span class="hljs-string">&#x27;controller&#x27;</span>][<span class="hljs-string">&#x27;max_vel_x&#x27;</span>]
+</code></pre>
+<p><strong>Environment-Specific Overrides:</strong> Different configuration files support different environments. <code>config.yaml</code> contains default production values, <code>config_test.yaml</code> provides testing environment settings (faster rates, smaller areas), and <code>config_sim.yaml</code> holds simulation parameters (different sensor models).</p>
+<p><strong>Runtime Parameter Updates:</strong> ROS2 parameters enable runtime value changes:</p>
+<pre><code class="language-bash">ros2 param <span class="hljs-built_in">set</span> /explorer exploration.update_frequency 2.0
+</code></pre>
+<h3 id="configuration-validation">Configuration Validation</h3>
+<p><strong>Pre-flight Checks</strong> validate all required parameters are present, check value ranges (e.g., velocities &gt; 0), verify topic names don't conflict, and ensure file paths exist and are writable.</p>
+<p><strong>Configuration Schema:</strong> JSON Schema or similar tools can validate config.yaml structure before loading (optional).</p>
+<h2 id="open-issues--decisions">Open Issues &amp; Decisions</h2>
+<h3 id="software">Software</h3>
+<ul>
+<li>Path planner choice: NavFn (simple, fast) vs Smac Planner (more sophisticated)</li>
+</ul>
+<h3 id="configuration">Configuration</h3>
+<p>Tuning is required for SLAM parameters (resolution, update rates, loop closure settings), Nav2 (costmap inflation radius, max velocity, acceleration limits), exploration parameters (frontier size threshold, goal timeout, blacklist distance), and object detection (confidence threshold, detection rate, classes to detect).</p>
+<h3 id="development-environment">Development Environment</h3>
+<p>Decisions are needed regarding simulation (use Gazebo for testing before hardware ready?), development workflow (develop on robot vs remote computer), and testing environment (build test area with furniture/obstacles?).</p>
+<h3 id="future-enhancements-post-mvp">Future Enhancements (Post-MVP)</h3>
+<p>Potential future enhancements include AprilTag dock for improved return-to-home, battery monitoring and low-power return behavior, multi-floor exploration capability, more sophisticated object detection (custom trained models), web dashboard as alternative to TUI, and mission replay and analysis tools.</p>
+
+            
+            
+        </body>
+        </html>
