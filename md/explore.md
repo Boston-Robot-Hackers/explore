@@ -1,5 +1,93 @@
 # Explore: Semantic Mapping Stack for Dome2
 
+---
+
+## Design Review Summary
+
+**Review Date:** January 2026
+**Status:** Draft - Requires resolution of open items before implementation
+
+### What's Solid
+
+- **Reliability-first philosophy** - Correct priority for autonomous robotics
+- **Technology choices** - SLAM Toolbox + Nav2 are battle-tested and appropriate
+- **State machine over behavior trees** - Pragmatic choice for mission control complexity
+- **Stuck detection strategy** - Thorough and well-reasoned multi-indicator approach
+- **Custom frontier exploration** - Eliminates risky dependency on unmaintained packages
+- **Simplified object positioning** - MVP scope (±0.5m) is achievable; precise positioning deferred appropriately
+
+### Resolved Issues
+
+| Issue | Resolution |
+|-------|------------|
+| External exploration package risk | Replaced with custom implementation (see Exploration Package Design) |
+| Object 3D positioning complexity | Reduced scope to ±0.5m accuracy for MVP (see Object Detection & Positioning Design) |
+
+### Open Issues Requiring Action
+
+The following items need to be addressed before or during implementation:
+
+#### Critical (Address in Phase 1-2)
+
+- [ ] **TF Tree Documentation** - No diagram showing frame relationships. Who publishes `map→odom`? `odom→base_link`? `camera_link→base_link`? TF issues are the #1 ROS2 integration problem.
+
+- [ ] **Startup/Shutdown Sequence** - What order do nodes launch? What happens if SLAM Toolbox isn't ready when explorer starts? What's the graceful shutdown procedure?
+
+- [ ] **Localization Loss Detection** - Design says "localization_loss_timeout: 5.0 seconds" but doesn't specify HOW to detect localization loss. SLAM Toolbox doesn't publish a confidence score. Options: monitor covariance, scan matching scores, or position jumps.
+
+- [ ] **Pi 5 Performance Budget** - Running SLAM + Nav2 + Object Detection + TUI simultaneously is aggressive. Need to measure CPU/memory baseline with just SLAM + Nav2 before adding more components.
+
+#### Important (Address in Phase 2-3)
+
+- [ ] **Coverage Metric Undefined** - TUI shows "Coverage: 68%" but this is undefined. You can't know total explorable area in an unknown environment. Either define a heuristic (e.g., frontier reduction) or remove this metric.
+
+- [ ] **Return-to-Home After SLAM Drift** - After 30 minutes of exploration, SLAM drift means origin (0,0) may have shifted. Document whether this is acceptable or requires mitigation (loop closure back to start, AprilTag dock).
+
+- [ ] **Simulation Environment** - Currently in "Open Issues" but should be required. Testing autonomous exploration on real hardware only is slow and risks damage. Need Gazebo world for regression testing.
+
+- [ ] **Message Definitions** - `MissionState.msg`, `ObjectDetection.msg`, etc. are listed but not defined. Specify fields now to catch integration issues early.
+
+#### Recommended (Address Before Field Testing)
+
+- [ ] **Emergency Stop Hardware** - TUI has `[E] Emergency` but this is software-only. Document requirement for physical e-stop button.
+
+- [ ] **Camera Extrinsic Calibration** - Object positions depend on camera→base_link transform. Factory mounting won't be accurate. Document calibration procedure or accept larger position errors.
+
+- [ ] **Sensor Failure Detection** - Design mentions "abort if critical sensors fail" but doesn't specify how to detect sensor failure (e.g., no lidar data for N seconds, camera timeout).
+
+### Action Items Checklist
+
+Copy this checklist and resolve items as you progress:
+
+```
+## Phase 1: Baseline Verification
+- [ ] Document TF tree with all frames and publishers
+- [ ] Define startup sequence (which nodes first, health checks)
+- [ ] Measure Pi 5 baseline: CPU/memory with Dome2 + SLAM + Nav2
+- [ ] Create basic Gazebo simulation environment
+
+## Phase 2: SLAM & Navigation
+- [ ] Implement localization loss detection (choose method)
+- [ ] Test return-to-home after 15+ minutes of mapping
+- [ ] Define coverage metric or remove from TUI
+- [ ] Document shutdown sequence
+
+## Phase 3: Exploration
+- [ ] Define all custom message formats (MissionState, ObjectDetection, etc.)
+- [ ] Verify Pi 5 performance with full stack running
+
+## Phase 4: Object Detection
+- [ ] Decide on camera calibration approach (skip for MVP or basic procedure)
+- [ ] Test depth accuracy at various distances
+
+## Phase 5: Mission Control
+- [ ] Document emergency stop requirements (software + hardware)
+- [ ] Implement sensor failure detection and handling
+- [ ] Integration test with Gazebo before field testing
+```
+
+---
+
 ## Robot Platform
 
 The Explore project builds upon an existing Dome2 robot that provides core ROS2 functionality. The Dome2 platform features a differential drive chassis powered by a Raspberry Pi 5, equipped with an Oak-d-lite camera (providing both RGB and depth sensing), and a lidar sensor. The entire system runs on ROS2 Jazzy.
@@ -14,11 +102,11 @@ The robot will autonomously explore and map an unknown indoor environment while 
 
 ### Mission Objectives
 
-The mission has three core objectives: **Autonomous Exploration** to navigate and avoid obstacles autonomously; **Mapping & Localization** to build a 2D occupancy map with accurate localization; and **Object Detection & Cataloging** to identify and record object locations on the map.
+The mission has three core objectives: **Autonomous Exploration** to navigate and avoid obstacles autonomously; **Mapping & Localization** to build a 2D occupancy map with accurate localization; and **Object Detection & Cataloging** to identify objects and record their approximate locations.
 
 ### Success Criteria
 
-Mission success requires the robot to navigate autonomously without collision, generate a usable map of the explored space, detect and identify target objects with greater than 80% accuracy, and log object positions on the map.
+Mission success requires the robot to navigate autonomously without collision, generate a usable map of the explored space, detect and identify target objects with greater than 80% accuracy, and log object detections with approximate map positions (±0.5m accuracy acceptable for MVP).
 
 ### Environment & Constraints
 
@@ -93,7 +181,7 @@ The system employs a ROS2-based modular architecture with the standard navigatio
 
 **Prerequisites** provided by the Dome2 base platform include the hardware interface layer (motor control, sensor drivers for lidar, camera, and IMU, and odometry publishing). Base topics `/scan`, `/odom`, `/camera/rgb`, `/camera/depth`, `/cmd_vel`, and `/imu` are already available. The Explore semantic mapping stack builds on top of the working Dome2 platform.
 
-**Perception Layer:** The SLAM Node uses SLAM Toolbox for map building and localization. The Object Detection Node runs MobileNet-SSD on the Oak-d-lite for object identification. Obstacle Detection combines lidar and depth data for obstacle avoidance.
+**Perception Layer:** The SLAM Node uses SLAM Toolbox for map building and localization. The Object Detection Node runs MobileNet-SSD on the Oak-D-Lite Myriad X VPU for object identification, with depth-based approximate positioning (±0.5m). Obstacle Detection combines lidar and depth data for obstacle avoidance.
 
 **Navigation Layer:** The Nav2 Stack provides path planning, trajectory control, and behavior trees. The Costmap combines static maps with dynamic obstacles. Recovery Behaviors handle stuck detection and recovery routines.
 
@@ -127,7 +215,7 @@ The system flow works as follows: Lidar feeds SLAM Toolbox which generates the M
 **Confirmed Decisions:**
 - **SLAM**: SLAM Toolbox (async mode)
 - **Navigation**: Nav2 stack
-- **Exploration**: Autonomous-Explorer-and-Mapper-ros2-nav2
+- **Exploration**: Custom frontier-based exploration (see Exploration Package Design section)
 - **Object Detection**: MobileNet-SSD (Luxonis model zoo, runs on Oak-d-lite Myriad X)
 - **Control Interface**: TUI (textual library) + Visualization
 - **Mission Logic**: Simple state machine (not behavior tree)
@@ -145,22 +233,532 @@ The system flow works as follows: Lidar feeds SLAM Toolbox which generates the M
 ```
 Mission Manager (State Machine)                    ← Explore stack
     ↓
-Exploration Node (Sequential Logic)                ← Explore stack
+Frontier Explorer (Timer-based frontier selection) ← Explore stack
     ↓
-Nav2 (Behavior Trees - internal)                   ← Explore stack
+Nav2 (Behavior Trees - internal)                   ← Standard package
     ↓
 Dome2 Platform (Motion, Odometry, IMU, Camera)     ← Base platform
 ```
 
-### Exploration Package Decision
+### Exploration Package Design
 
-**Selected: Autonomous-Explorer-and-Mapper-ros2-nav2**
+**Approach:** Custom frontier-based exploration implementation
 
-This package was specifically designed for SLAM Toolbox + Nav2 + ROS2 Humble/Jazzy. It handles dynamic map updates from SLAM Toolbox correctly, implements frontier-based exploration with dynamic goal selection, includes built-in recovery behaviors for localization failures, and provides a lightweight, focused implementation. Source: https://github.com/AniArka/Autonomous-Explorer-and-Mapper-ros2-nav2
+Rather than depending on external community packages with uncertain maintenance and compatibility, the Explore stack includes a custom frontier-based exploration module. This provides full control over behavior, easier debugging, and guaranteed compatibility with SLAM Toolbox and Nav2.
 
-**Why not m-explore-ros2:** This package has a known incompatibility with SLAM Toolbox (Issue #10 since Dec 2021). It was designed for gmapping and doesn't handle SLAM Toolbox's dynamic map growth. The map merging algorithm breaks with SLAM Toolbox. Source: https://github.com/robo-friends/m-explore-ros2/issues/10
+**Why not existing packages:**
+- **m-explore-ros2**: Known incompatibility with SLAM Toolbox (Issue #10 since Dec 2021). Designed for gmapping, doesn't handle SLAM Toolbox's dynamic map growth.
+- **Other community packages**: Limited maintenance, uncertain ROS2 Jazzy compatibility, adds external dependencies for ~300 lines of code.
 
-**Alternative Options:** Custom implementation (~200-300 lines Python) or other community packages (ROS2-FrontierBaseExplorationForAutonomousRobot, AutoFrontierSearch_ros2-humble).
+**Core Algorithm:**
+
+The frontier-based exploration algorithm identifies boundaries between known free space and unknown space, then navigates to these frontiers to expand the map.
+
+```
+1. Subscribe to /map (OccupancyGrid from SLAM Toolbox)
+2. On map update or timer:
+   a. Find all frontier cells (free cells adjacent to unknown cells)
+   b. Cluster nearby frontier cells into frontier regions
+   c. Filter frontiers (minimum size, not blacklisted, reachable)
+   d. Score and rank frontiers (closest, largest, or weighted)
+   e. Select best frontier as next goal
+3. Send goal to Nav2 NavigateToPose action
+4. Monitor navigation result:
+   - SUCCESS: Wait for map update, repeat from step 2
+   - ABORTED: Blacklist frontier, select next best
+   - TIMEOUT: Blacklist frontier, select next best
+5. Termination: No valid frontiers remain
+```
+
+**Frontier Detection:**
+
+A cell is a frontier if:
+- Cell value is FREE (0 in occupancy grid)
+- At least one adjacent cell (4-connected or 8-connected) is UNKNOWN (-1)
+
+```python
+def find_frontiers(occupancy_grid):
+    frontiers = []
+    for cell in occupancy_grid:
+        if cell.value == FREE:
+            for neighbor in cell.neighbors_4connected():
+                if neighbor.value == UNKNOWN:
+                    frontiers.append(cell)
+                    break
+    return frontiers
+```
+
+**Frontier Clustering:**
+
+Adjacent frontier cells are grouped into frontier regions using connected components or distance-based clustering. Each cluster is represented by its centroid.
+
+```python
+def cluster_frontiers(frontier_cells, cluster_tolerance=0.3):
+    # Group cells within cluster_tolerance meters of each other
+    clusters = []
+    for cell in frontier_cells:
+        added = False
+        for cluster in clusters:
+            if distance(cell, cluster.centroid) < cluster_tolerance:
+                cluster.add(cell)
+                added = True
+                break
+        if not added:
+            clusters.append(new_cluster(cell))
+    return clusters
+```
+
+**Frontier Scoring:**
+
+Multiple strategies supported via configuration:
+
+- **closest**: Minimize travel distance (default, most efficient)
+- **largest**: Maximize information gain per goal
+- **weighted**: Balance distance and size: `score = size_weight * size - distance_weight * distance`
+
+```python
+def score_frontier(frontier, robot_pose, strategy, weights):
+    distance = euclidean_distance(robot_pose, frontier.centroid)
+    size = frontier.cell_count
+
+    if strategy == "closest":
+        return -distance  # Lower distance = higher score
+    elif strategy == "largest":
+        return size
+    elif strategy == "weighted":
+        return weights.size * size - weights.distance * distance
+```
+
+**Blacklisting:**
+
+Frontiers that fail navigation are temporarily blacklisted:
+
+- First failure: Blacklist for `blacklist_timeout` seconds (default 60s)
+- Repeated failures: Permanent blacklist for this mission
+- Blacklist cleared on mission restart
+
+```python
+class FrontierBlacklist:
+    def __init__(self, timeout=60.0, max_size=20):
+        self.entries = {}  # frontier_id -> (timestamp, failure_count)
+
+    def is_blacklisted(self, frontier_id):
+        if frontier_id not in self.entries:
+            return False
+        timestamp, count = self.entries[frontier_id]
+        if count >= 3:  # Permanent blacklist
+            return True
+        if time.now() - timestamp < self.timeout:
+            return True
+        return False  # Timeout expired, can retry
+```
+
+**Integration with Nav2:**
+
+The explorer uses Nav2's `NavigateToPose` action interface:
+
+```python
+class FrontierExplorer(Node):
+    def __init__(self):
+        self.nav_client = ActionClient(self, NavigateToPose, 'navigate_to_pose')
+        self.map_sub = self.create_subscription(OccupancyGrid, '/map', self.map_callback)
+        self.timer = self.create_timer(5.0, self.exploration_tick)
+
+    def exploration_tick(self):
+        if self.nav_in_progress:
+            return
+        frontiers = self.find_frontiers(self.current_map)
+        frontiers = self.filter_frontiers(frontiers)
+        if not frontiers:
+            self.publish_exploration_complete()
+            return
+        best = self.select_frontier(frontiers)
+        self.send_nav_goal(best.centroid)
+
+    def nav_result_callback(self, future):
+        result = future.result()
+        if result.status == GoalStatus.STATUS_SUCCEEDED:
+            self.current_frontier = None  # Ready for next
+        else:
+            self.blacklist.add(self.current_frontier)
+            self.current_frontier = None
+```
+
+**Key Parameters:**
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `update_frequency` | 5.0s | Time between exploration ticks |
+| `frontier_min_size` | 5 cells | Ignore tiny frontiers |
+| `frontier_min_distance` | 0.5m | Ignore frontiers too close to robot |
+| `cluster_tolerance` | 0.3m | Distance to group frontier cells |
+| `selection_strategy` | "closest" | How to pick next frontier |
+| `max_goal_distance` | 10.0m | Don't attempt distant frontiers |
+| `blacklist_timeout` | 60.0s | Time before retrying failed frontier |
+| `goal_timeout` | 120.0s | Max time to reach a frontier |
+
+**Complexity Analysis:**
+
+- Frontier detection: O(n) where n = map cells
+- Clustering: O(f²) where f = frontier cells (typically << n)
+- Scoring: O(c) where c = clusters (typically 5-20)
+- Total per tick: O(n) dominated by map scan
+
+For a 50m × 50m map at 0.05m resolution (1M cells), frontier detection takes ~10-50ms on Pi 5. Acceptable for 5-second update interval.
+
+**Testing Strategy:**
+
+1. **Unit tests**: Frontier detection on synthetic maps with known frontiers
+2. **Integration tests**: Full loop with recorded rosbags from real environments
+3. **Simulation tests**: Gazebo environment with obstacles and rooms
+4. **Field tests**: Real robot in controlled environment
+
+### Object Detection & Positioning Design
+
+**Approach:** Simplified MVP with approximate positions
+
+For the MVP, object detection focuses on reliable identification with approximate map positions (±0.5m). Precise 3D localization is deferred to post-MVP enhancements, as it requires camera calibration, careful timing synchronization, and sophisticated depth processing that would significantly increase complexity.
+
+**MVP Scope:**
+- Detect objects using MobileNet-SSD on Oak-D-Lite's Myriad X VPU
+- Estimate approximate distance using depth camera
+- Transform to map coordinates using current robot pose
+- Accept ±0.5m position accuracy as sufficient for "object is in this area"
+- Log detections with images for human verification
+
+**Out of Scope for MVP:**
+- Sub-10cm positioning accuracy
+- Camera extrinsic calibration procedures
+- Sophisticated depth filtering or outlier rejection
+- Object re-identification across views
+
+**System Architecture:**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     Oak-D-Lite Camera                           │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────────────┐  │
+│  │  RGB Sensor │    │Depth Sensor │    │ Myriad X VPU        │  │
+│  │  640x480    │    │  640x480    │    │ (runs MobileNet-SSD)│  │
+│  └──────┬──────┘    └──────┬──────┘    └──────────┬──────────┘  │
+└─────────┼──────────────────┼─────────────────────┼──────────────┘
+          │                  │                     │
+          ▼                  ▼                     ▼
+   /camera/rgb         /camera/depth      /camera/detections
+          │                  │                     │
+          └────────┬─────────┴─────────────────────┘
+                   │
+                   ▼
+        ┌──────────────────────┐
+        │  ObjectDetectorNode  │
+        │  (explore_perception)│
+        └──────────┬───────────┘
+                   │
+                   ▼
+        ┌──────────────────────┐       ┌─────────────────┐
+        │   DepthProcessor     │◄──────│  TF2 Buffer     │
+        │   (depth lookup +    │       │  (map→base_link)│
+        │    coordinate xform) │       └─────────────────┘
+        └──────────┬───────────┘
+                   │
+                   ▼
+        ┌──────────────────────┐
+        │   ObjectCatalog      │
+        │   (deduplication +   │
+        │    persistence)      │
+        └──────────┬───────────┘
+                   │
+                   ▼
+           /detected_objects
+```
+
+**Detection Pipeline:**
+
+```python
+class ObjectDetectorNode(Node):
+    """
+    Subscribes to camera RGB, depth, and neural network detections.
+    Produces ObjectDetection messages with approximate map positions.
+    """
+
+    def __init__(self):
+        super().__init__('object_detector')
+
+        # Parameters
+        self.confidence_threshold = 0.7
+        self.detection_rate = 2.0  # Hz
+        self.target_classes = ['bottle', 'cup', 'chair', 'couch']
+
+        # TF for coordinate transforms
+        self.tf_buffer = tf2_ros.Buffer()
+        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
+
+        # Subscriptions (synchronized)
+        self.rgb_sub = message_filters.Subscriber(self, Image, '/camera/rgb')
+        self.depth_sub = message_filters.Subscriber(self, Image, '/camera/depth')
+        self.detection_sub = message_filters.Subscriber(
+            self, Detection2DArray, '/camera/detections'
+        )
+
+        # Approximate time synchronizer (allows small timing differences)
+        self.sync = message_filters.ApproximateTimeSynchronizer(
+            [self.rgb_sub, self.depth_sub, self.detection_sub],
+            queue_size=10,
+            slop=0.1  # 100ms tolerance
+        )
+        self.sync.registerCallback(self.detection_callback)
+
+        # Output
+        self.catalog = ObjectCatalog(min_distance=0.5)
+        self.detection_pub = self.create_publisher(
+            ObjectDetection, '/detected_objects', 10
+        )
+
+    def detection_callback(self, rgb_msg, depth_msg, detections_msg):
+        """Process synchronized RGB, depth, and detection messages."""
+
+        for detection in detections_msg.detections:
+            # Filter by confidence and target class
+            if detection.results[0].score < self.confidence_threshold:
+                continue
+            class_name = detection.results[0].id
+            if class_name not in self.target_classes:
+                continue
+
+            # Get depth at detection center
+            bbox = detection.bbox
+            center_x = int(bbox.center.x)
+            center_y = int(bbox.center.y)
+
+            depth_value = self.get_depth_at_point(depth_msg, center_x, center_y)
+            if depth_value is None or depth_value < 0.3 or depth_value > 5.0:
+                continue  # Invalid depth
+
+            # Convert to 3D point in camera frame
+            camera_point = self.pixel_to_camera_frame(
+                center_x, center_y, depth_value
+            )
+
+            # Transform to map frame
+            try:
+                map_point = self.transform_to_map(
+                    camera_point,
+                    rgb_msg.header.stamp
+                )
+            except tf2_ros.TransformException:
+                self.get_logger().warn('TF transform failed, skipping detection')
+                continue
+
+            # Add to catalog (handles deduplication)
+            obj = ObjectDetection(
+                class_name=class_name,
+                confidence=detection.results[0].score,
+                position=map_point,
+                timestamp=rgb_msg.header.stamp,
+                image=self.crop_detection(rgb_msg, bbox)
+            )
+
+            if self.catalog.add(obj):
+                self.detection_pub.publish(obj)
+                self.get_logger().info(
+                    f'New object: {class_name} at ({map_point.x:.1f}, {map_point.y:.1f})'
+                )
+```
+
+**Depth Lookup Strategy (Simplified):**
+
+For MVP, use a simple median-in-center approach rather than sophisticated segmentation:
+
+```python
+def get_depth_at_point(self, depth_msg, center_x, center_y, window_size=5):
+    """
+    Get depth value using median of small window around center point.
+
+    This is a simplified approach that:
+    - Uses median to reject outliers (depth noise at edges)
+    - Uses small window to stay near detection center
+    - Returns None if too many invalid pixels
+
+    Accuracy: Approximately ±10-20cm at typical indoor distances (1-3m)
+    """
+    depth_image = self.bridge.imgmsg_to_cv2(depth_msg, desired_encoding='passthrough')
+
+    # Extract window around center
+    half = window_size // 2
+    y_min = max(0, center_y - half)
+    y_max = min(depth_image.shape[0], center_y + half + 1)
+    x_min = max(0, center_x - half)
+    x_max = min(depth_image.shape[1], center_x + half + 1)
+
+    window = depth_image[y_min:y_max, x_min:x_max]
+
+    # Filter invalid values (0 = no reading, very large = noise)
+    valid_depths = window[(window > 0) & (window < 10000)]  # mm
+
+    if len(valid_depths) < window_size:  # Too few valid pixels
+        return None
+
+    # Return median in meters
+    return float(np.median(valid_depths)) / 1000.0
+```
+
+**Coordinate Transformation:**
+
+```python
+def pixel_to_camera_frame(self, pixel_x, pixel_y, depth_meters):
+    """
+    Convert pixel + depth to 3D point in camera optical frame.
+
+    Uses pinhole camera model with Oak-D-Lite intrinsics.
+    """
+    # Oak-D-Lite typical intrinsics (should be from camera_info topic)
+    fx = 450.0  # focal length x
+    fy = 450.0  # focal length y
+    cx = 320.0  # principal point x
+    cy = 240.0  # principal point y
+
+    # Back-project to 3D
+    x = (pixel_x - cx) * depth_meters / fx
+    y = (pixel_y - cy) * depth_meters / fy
+    z = depth_meters
+
+    return Point(x=x, y=y, z=z)
+
+def transform_to_map(self, camera_point, timestamp):
+    """
+    Transform point from camera_optical_frame to map frame.
+
+    Uses TF2 with the timestamp from the image capture, not current time.
+    This is important when the robot is moving.
+    """
+    point_stamped = PointStamped()
+    point_stamped.header.frame_id = 'camera_optical_frame'
+    point_stamped.header.stamp = timestamp
+    point_stamped.point = camera_point
+
+    # Look up transform at image capture time
+    transform = self.tf_buffer.lookup_transform(
+        'map',
+        'camera_optical_frame',
+        timestamp,
+        timeout=rclpy.duration.Duration(seconds=0.1)
+    )
+
+    # Apply transform
+    map_point = tf2_geometry_msgs.do_transform_point(point_stamped, transform)
+    return map_point.point
+```
+
+**Object Catalog (Deduplication):**
+
+```python
+class ObjectCatalog:
+    """
+    Maintains catalog of detected objects with spatial deduplication.
+
+    When a new detection is within min_distance of an existing object
+    of the same class, it's considered a duplicate and merged.
+    """
+
+    def __init__(self, min_distance=0.5, max_objects=100):
+        self.objects = []  # List of ObjectDetection
+        self.min_distance = min_distance
+        self.max_objects = max_objects
+
+    def add(self, detection):
+        """
+        Add detection to catalog. Returns True if new object, False if duplicate.
+        """
+        # Check for existing nearby object of same class
+        for existing in self.objects:
+            if existing.class_name != detection.class_name:
+                continue
+
+            dist = self._distance(existing.position, detection.position)
+            if dist < self.min_distance:
+                # Duplicate - update position with running average
+                self._merge(existing, detection)
+                return False
+
+        # New object
+        if len(self.objects) >= self.max_objects:
+            self.get_logger().warn('Object catalog full, dropping oldest')
+            self.objects.pop(0)
+
+        self.objects.append(detection)
+        return True
+
+    def _merge(self, existing, new_detection):
+        """Merge new detection into existing object (running average of position)."""
+        existing.detection_count += 1
+        n = existing.detection_count
+
+        # Running average of position
+        existing.position.x = (existing.position.x * (n-1) + new_detection.position.x) / n
+        existing.position.y = (existing.position.y * (n-1) + new_detection.position.y) / n
+
+        # Keep highest confidence detection's image
+        if new_detection.confidence > existing.confidence:
+            existing.confidence = new_detection.confidence
+            existing.image = new_detection.image
+
+    def _distance(self, p1, p2):
+        """2D Euclidean distance (ignore Z for indoor floor objects)."""
+        return math.sqrt((p1.x - p2.x)**2 + (p1.y - p2.y)**2)
+
+    def save(self, filepath):
+        """Save catalog to JSON file."""
+        data = {
+            'objects': [
+                {
+                    'class': obj.class_name,
+                    'position': {'x': obj.position.x, 'y': obj.position.y},
+                    'confidence': obj.confidence,
+                    'detection_count': obj.detection_count,
+                    'first_seen': obj.timestamp.sec
+                }
+                for obj in self.objects
+            ]
+        }
+        with open(filepath, 'w') as f:
+            json.dump(data, f, indent=2)
+```
+
+**Key Parameters:**
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `confidence_threshold` | 0.7 | Minimum detection confidence (0.0-1.0) |
+| `detection_rate` | 2.0 Hz | How often to process detections |
+| `min_depth` | 0.3m | Ignore objects closer than this |
+| `max_depth` | 5.0m | Ignore objects further than this |
+| `depth_window_size` | 5 pixels | Window for median depth lookup |
+| `min_distance_between` | 0.5m | Distance to consider same object |
+| `max_catalog_size` | 100 | Maximum tracked objects |
+| `target_classes` | [bottle, cup, chair, couch] | COCO classes to detect |
+
+**Known Limitations (MVP):**
+
+1. **Position accuracy**: ±0.5m typical, worse at distance or object edges
+2. **No camera calibration**: Uses nominal intrinsics, not calibrated extrinsics
+3. **Moving robot**: May have slight position errors if robot moving during detection
+4. **Depth holes**: Shiny/transparent objects may fail depth lookup
+5. **Same-class confusion**: Two bottles 0.4m apart may be merged as one
+
+**Future Enhancements (Post-MVP):**
+
+- Camera intrinsic/extrinsic calibration procedure
+- Depth segmentation within bounding box (not just center)
+- Object re-identification using visual features
+- Confidence-weighted position averaging
+- Integration with map for "object is on table" semantic labeling
+
+**Testing Strategy:**
+
+1. **Unit tests**: Depth lookup, coordinate transforms, catalog deduplication
+2. **Integration tests**: Full pipeline with recorded rosbags
+3. **Accuracy tests**: Place known objects at measured positions, verify detection positions
+4. **Stress tests**: Many objects, rapid movement, edge cases (shiny surfaces, occlusion)
 
 ### Deployment & Development Workflow
 
@@ -189,11 +787,11 @@ SLAM Toolbox runs continuously, subscribing to `/scan` and `/odom`, publishing `
 
 Nav2 (the navigation stack) uses `/map` from SLAM Toolbox, plans paths through free space, and drives the robot to goal poses.
 
-Autonomous Explorer handles frontier detection by subscribing to `/map` from SLAM Toolbox, analyzing the map to find frontiers (edges between known free space and unknown), scoring/ranking frontiers (preferring closest frontier for efficiency), and publishing goal poses to Nav2's NavigateToPose action.
+Frontier Explorer (custom `explore_exploration` package) handles frontier detection by subscribing to `/map` from SLAM Toolbox, analyzing the map to find frontiers (edges between known free space and unknown), scoring/ranking frontiers (preferring closest frontier for efficiency), and sending goal poses to Nav2's NavigateToPose action.
 
 **The Exploration Loop:**
 
-SLAM Toolbox publishes an updated map → Autonomous Explorer detects frontiers in the map → Autonomous Explorer picks the closest frontier → Autonomous Explorer sends goal to Nav2 NavigateToPose → Nav2 plans path and drives robot to frontier → Robot reaches frontier, lidar sees new area → SLAM Toolbox updates map with new data → Loop repeats until no frontiers remain.
+SLAM Toolbox publishes an updated map → Frontier Explorer detects frontiers in map → Frontier Explorer picks the best frontier → Frontier Explorer sends goal to Nav2 NavigateToPose → Nav2 plans path and drives robot to frontier → Robot reaches frontier, lidar sees new area → SLAM Toolbox updates map with new data → Loop repeats until no frontiers remain.
 
 ## Control & Monitoring
 
@@ -303,16 +901,17 @@ The directory structure below contains only the Explore semantic mapping stack, 
 │   │   │   ├── setup.py
 │   │   │   └── README.md
 │   │   │
-│   │   ├── explore_perception/           # Object detection
+│   │   ├── explore_perception/           # Object detection (MVP: ±0.5m positioning)
 │   │   │   ├── explore_perception/
 │   │   │   │   ├── __init__.py
-│   │   │   │   ├── object_detector.py         # MobileNet-SSD detector
-│   │   │   │   ├── object_catalog.py          # Object tracking
-│   │   │   │   └── depth_processor.py         # 3D position estimation
-│   │   │   ├── models/
-│   │   │   │   └── mobilenet_ssd/             # Model files
+│   │   │   │   ├── object_detector_node.py    # Main ROS2 node (subscriptions, pub)
+│   │   │   │   ├── depth_lookup.py            # Median-in-window depth extraction
+│   │   │   │   ├── coordinate_transform.py    # Pixel→camera→map transforms
+│   │   │   │   └── object_catalog.py          # Deduplication & persistence
 │   │   │   ├── test/
-│   │   │   │   └── test_object_detector.py
+│   │   │   │   ├── test_depth_lookup.py
+│   │   │   │   ├── test_coordinate_transform.py
+│   │   │   │   └── test_object_catalog.py
 │   │   │   ├── package.xml
 │   │   │   ├── setup.py
 │   │   │   └── README.md
@@ -395,8 +994,7 @@ The directory structure below contains only the Explore semantic mapping stack, 
 │   │
 │   └── external/                         # Third-party packages
 │       ├── slam_toolbox/                 # (apt install recommended)
-│       ├── nav2/                         # (apt install recommended)
-│       └── autonomous_explorer/          # Cloned from GitHub
+│       └── nav2/                         # (apt install recommended)
 │
 ├── build/                                # Build artifacts (gitignored)
 ├── install/                              # Install space (gitignored)
@@ -442,9 +1040,9 @@ Note that the hardware interface (motors, sensors, odometry, IMU, camera) is pro
 
 **explore_navigation** provides navigation extensions including stuck detection logic, recovery behavior coordination, and Nav2 monitoring and feedback.
 
-**explore_exploration** implements autonomous exploration with frontier detection and clustering, frontier selection strategies, exploration state management, and integration with the Autonomous-Explorer package.
+**explore_exploration** implements autonomous exploration with frontier detection and clustering, frontier selection strategies, exploration state management, and Nav2 action client integration.
 
-**explore_perception** handles object detection and tracking using the MobileNet-SSD detector on Oak-d-lite, object catalog management, and 3D position estimation using depth data.
+**explore_perception** handles object detection using MobileNet-SSD on Oak-D-Lite's Myriad X VPU, approximate position estimation via depth lookup and TF transforms, and object catalog management with spatial deduplication. Position accuracy is ±0.5m (sufficient for "object is in this area" use cases).
 
 **explore_mission** manages mission control with a high-level state machine, return-to-home logic, mission completion detection, and system diagnostics.
 
@@ -563,7 +1161,10 @@ Development follows an incremental approach with continuous testing. Each phase 
 **Goal:** Robot explores autonomously without manual goals.
 
 **Tasks:**
-- Integrate Autonomous-Explorer-and-Mapper-ros2-nav2 package
+- Implement frontier detection algorithm (find free/unknown boundaries)
+- Implement frontier clustering and scoring
+- Implement Nav2 action client for NavigateToPose
+- Implement frontier blacklisting for failed goals
 - Configure exploration parameters (frontier detection, goal selection)
 - Implement mission manager state machine
 - Implement return-to-home behavior
@@ -577,27 +1178,33 @@ Development follows an incremental approach with continuous testing. Each phase 
 - Robot returns to starting position
 - Map saved successfully after mission
 
-**Duration:** 2 weeks
+**Duration:** 3 weeks
 
 ### Phase 4: Object Detection & Cataloging
 
-**Goal:** Detect and catalog objects during exploration.
+**Goal:** Detect and catalog objects during exploration with approximate positions.
 
 **Tasks:**
-- Set up MobileNet-SSD on Oak-d-lite
-- Implement object detection ROS2 node
-- Create object catalog data structure
-- Integrate detection with mission manager
-- Add object position calculation (map coordinates)
-- Store detected objects with timestamps and images
+- Configure Oak-D-Lite neural network pipeline for MobileNet-SSD
+- Verify detection topics publishing (`/camera/detections`)
+- Implement ObjectDetectorNode with synchronized RGB/depth/detection subscriptions
+- Implement simplified depth lookup (median-in-window approach)
+- Implement pixel-to-camera-frame coordinate conversion
+- Implement TF2-based camera-to-map transformation
+- Implement ObjectCatalog with spatial deduplication
+- Add catalog persistence (JSON export)
+- Integrate detection events with mission manager logging
+- Store cropped detection images for post-mission review
 
 **Success Criteria:**
-- Objects detected in real-time during exploration
-- Object positions accurately recorded on map
-- Object catalog saved with map data
-- False positive rate acceptable
+- Objects detected in real-time during exploration (2 Hz processing)
+- Detection confidence >80% for target classes (bottle, cup, chair, couch)
+- Object positions logged with ±0.5m accuracy (approximate, not precise)
+- Duplicate detections merged correctly (same object from multiple views)
+- Object catalog and images saved with map data
+- False positive rate <20% (1 in 5 detections is spurious)
 
-**Duration:** 1-2 weeks
+**Duration:** 2 weeks
 
 ### Phase 5: Mission Control & Monitoring
 
@@ -825,10 +1432,17 @@ object_detector:
     # Classes to detect (COCO dataset)
     target_classes: ["bottle", "cup", "bowl", "chair", "couch"]
 
+    # Depth processing (simplified MVP approach)
+    depth_window_size: 5              # pixels for median depth lookup
+    min_depth: 0.3                    # meters - ignore closer objects
+    max_depth: 5.0                    # meters - ignore distant objects
+
     # Catalog settings
-    min_distance_between: 0.5         # meters (deduplicate)
+    min_distance_between: 0.5         # meters (deduplicate nearby detections)
     max_catalog_size: 100
     save_images: true
+
+    # Position accuracy note: MVP targets ±0.5m, not precise localization
 
 # =============================================================================
 # Explore Diagnostics Node
@@ -939,4 +1553,4 @@ Decisions are needed regarding simulation (use Gazebo for testing before hardwar
 
 ### Future Enhancements (Post-MVP)
 
-Potential future enhancements include AprilTag dock for improved return-to-home, battery monitoring and low-power return behavior, multi-floor exploration capability, more sophisticated object detection (custom trained models), web dashboard as alternative to TUI, and mission replay and analysis tools.
+Potential future enhancements include AprilTag dock for improved return-to-home, battery monitoring and low-power return behavior, multi-floor exploration capability, precise object positioning (<10cm accuracy via camera calibration and depth segmentation), object re-identification across views, more sophisticated object detection (custom trained models), web dashboard as alternative to TUI, and mission replay and analysis tools.
