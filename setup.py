@@ -1,4 +1,6 @@
 from setuptools import find_packages, setup
+import os
+from glob import glob
 
 package_name = 'explore'
 
@@ -10,6 +12,7 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
+        (os.path.join('share', package_name, 'launch'), glob('launch/*.py')),  # ADD THIS
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -24,6 +27,9 @@ setup(
     },
     entry_points={
         'console_scripts': [
+            'two = explore.test_two:main',
+            'one = explore.test_one:main',
+            'three = explore.test_three:main',
         ],
     },
 )
